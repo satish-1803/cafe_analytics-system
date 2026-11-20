@@ -1,3 +1,18 @@
+import os, sqlite3, subprocess, sys
+
+def has_data():
+    if not os.path.exists("cafe.db"):
+        return False
+    c = sqlite3.connect("cafe.db")
+    try:
+        return c.execute("SELECT COUNT(*) FROM orders").fetchone()[0] > 0
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        c.close()
+
+if not has_data():
+    subprocess.run([sys.executable, "seed.py"], check=True)
 import sqlite3, pandas as pd, plotly.express as px, streamlit as st
 st.set_page_config(page_title="Café Analytics", layout="wide")
 st.title("Café analytics")
