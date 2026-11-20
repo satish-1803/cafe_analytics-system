@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin</title>
+<style>:root{--bg:#eef2f1;--card:#fff;--ink:#0f3d3e;--mute:#5b6b6b;--sa:#f2a900;--ch:#c8412b}@media(prefers-color-scheme:dark){:root{--bg:#0c1f20;--card:#14302f;--ink:#d7ecea;--mute:#9db5b3}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding:16px;max-width:900px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center}h1{font:700 26px Georgia,serif}h2{font:600 18px Georgia,serif}a,button.l{color:var(--ink);background:none;border:0;font:inherit;text-decoration:underline;cursor:pointer;margin-left:12px}
+.card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:16px}form{display:flex;gap:8px;flex-wrap:wrap}input{padding:9px;border-radius:8px;border:1px solid #8aa;font:inherit;flex:1;min-width:120px}
+button{padding:9px 14px;border:0;border-radius:8px;background:var(--sa);font-weight:600;cursor:pointer}button.d{background:var(--ch);color:#fff}
+table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid #8883;text-align:left}.off{opacity:.5}.rv{border-bottom:1px solid #8883;padding:8px 0}.mute{color:var(--mute)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ch);outline-offset:2px}</style></head><body>
+<header><h1>Admin</h1><div><a href="/kitchen">Kitchen</a><button class="l" id="out">Log out</button></div></header>
+<section class="card"><h2>Add menu item</h2><form id="add"><input id="n" placeholder="Name" required><input id="c" placeholder="Category" required>
+<input id="pr" type="number" min="0" step="1" placeholder="Price ₹" required><input id="d" placeholder="Description"><button>Add item</button></form></section>
+<section class="card"><h2>Menu</h2><table><thead><tr><th>Item</th><th>Price</th><th>Available</th><th></th></tr></thead><tbody id="rows"></tbody></table></section>
+<section class="card"><h2>Reviews</h2><p id="avg" class="mute"></p><div id="rv"></div></section>
+<script>
+const $=id=>document.getElementById(id),J={"Content-Type":"application/json"};
+async function api(u,m="GET",b){const r=await fetch(u,{method:m,headers:J,body:b&&JSON.stringify(b)});if(r.status==401){location="/login";throw 0}return r.json()}
+async function load(){const m=await api("/api/admin/menu");
+ $("rows").innerHTML=m.map(i=>`<tr class="${i.available?"":"off"}"><td><b>${i.name}</b><br><span class="mute">${i.category}</span></td>
+ <td>₹${i.price} <button class="l" onclick="price(${i.id},${i.price})">Edit</button></td>
+ <td><input type="checkbox" aria-label="Available: ${i.name}" ${i.available?"checked":""} onchange="api('/api/admin/menu/${i.id}','PATCH',{available:this.checked}).then(load)"></td>
+ <td><button class="d" onclick="del(${i.id})">Delete</button></td></tr>`).join("");
+ const r=await api("/api/admin/reviews");$("avg").textContent=r.count?`Average ${r.avg} / 5 from ${r.count} reviews`:"No reviews yet.";
+ $("rv").innerHTML=r.reviews.map(v=>`<div class="rv">${"★".repeat(v.rating)}${"☆".repeat(5-v.rating)} <span class="mute">Order #${v.order_id}</span><br>${v.comment.replace(/</g,"&lt;")}</div>`).join("")}
+$("add").onsubmit=async e=>{e.preventDefault();await api("/api/admin/menu","POST",{name:n.value,category:c.value,price:+pr.value,description:d.value});e.target.reset();load()};
+function price(id,old){const v=prompt("New price (₹)",old);if(v&&+v>=0)api("/api/admin/menu/"+id,"PATCH",{price:+v}).then(load)}
+function del(id){if(confirm("Delete this item? Past orders keep their records."))api("/api/admin/menu/"+id,"DELETE").then(load)}
+$("out").onclick=async()=>{await api("/api/logout","POST");location="/login"};load();
+</script></body></html>

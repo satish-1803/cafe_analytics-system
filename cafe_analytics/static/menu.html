@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Menu</title>
+<style>
+:root{--ink:#0f3d3e;--saffron:#f2a900;--chilli:#c8412b;--bg:#eef2f1;--card:#fff;--mute:#5b6b6b}
+@media(prefers-color-scheme:dark){:root{--ink:#d7ecea;--bg:#0c1f20;--card:#14302f;--mute:#9db5b3}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding-bottom:90px}
+header{padding:20px 16px 8px}h1{margin:0;font:700 26px Georgia,serif}header p{margin:4px 0 0;color:var(--mute)}
+h2{font:600 15px Georgia,serif;margin:22px 16px 6px;color:var(--mute)}
+.item{display:flex;gap:12px;align-items:center;background:var(--card);margin:0 12px 8px;padding:12px;border-radius:12px}
+.item div{flex:1}.item b{display:block}.item small{color:var(--mute)}
+.qty{display:flex;align-items:center;gap:10px}.qty button{width:34px;height:34px;border-radius:50%;border:2px solid var(--saffron);background:none;color:var(--ink);font-size:18px;cursor:pointer}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px;background:var(--card);display:flex;gap:8px;box-shadow:0 -2px 12px #0002}
+.bar button{flex:1;padding:14px;border:0;border-radius:10px;font:600 16px system-ui;cursor:pointer}
+#order{background:var(--saffron);color:#1a1200}#call{flex:0 0 auto;background:none;border:2px solid var(--chilli)!important;color:var(--chilli)}
+button:focus-visible{outline:3px solid var(--chilli);outline-offset:2px}
+#billbtn{flex:0 0 auto;background:none;border:2px solid var(--ink)!important;color:var(--ink)}
+dialog{background:var(--card);color:var(--ink);border:0;border-radius:14px;width:min(380px,92vw);padding:18px}dialog::backdrop{background:#0008}
+dialog h2{margin:0 0 8px;font:700 20px Georgia,serif}dialog input,dialog textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #8aa;font:inherit;margin:6px 0}
+.chip{width:auto!important;flex:0!important;padding:8px 14px!important;border:2px solid var(--saffron)!important;background:none;color:var(--ink);margin-right:6px;border-radius:999px;cursor:pointer}.chip.on{background:var(--saffron);color:#1a1200}
+.dl button{padding:12px;border:0;border-radius:10px;background:var(--saffron);font-weight:600;cursor:pointer;width:100%;margin-top:6px}.dl .x{background:none;color:var(--mute)}
+#stars button{font-size:28px;background:none;border:0;cursor:pointer;color:var(--saffron);width:auto}
+#status{margin:12px;padding:14px;border-radius:12px;background:var(--ink);color:var(--bg);display:none}
+</style></head><body>
+<header><h1>Table <span id="t"></span></h1><p>Pick your items and send the order to the kitchen.</p></header>
+<div id="status" role="status"></div><main id="menu"></main>
+<div class="bar"><button id="call">Call waiter</button><button id="billbtn">Bill</button><button id="order">Place order · ₹0</button></div>
+<dialog id="bill" class="dl"><h2>Your bill · Table <span id="bt"></span></h2>
+<div id="pay"><p id="bsub"></p><div id="tips" aria-label="Tip"></div>
+<p>Split between <button id="mi" class="chip" aria-label="Fewer people">−</button> <b id="sp">1</b> <button id="pl" class="chip" aria-label="More people">+</button> people</p>
+<p id="btotal"><b></b></p><input id="email" type="email" placeholder="Email for receipt (optional)" autocomplete="email">
+<button id="payb">Pay bill (demo)</button></div>
+<div id="rev" hidden><p id="done"></p><p>How was it?</p><div id="stars"></div><textarea id="cm" rows="2" placeholder="Comment (optional)"></textarea><button id="sendr">Send review</button></div>
+<button class="x" id="closeb">Close</button></dialog>
+<script>
+const table=location.pathname.split("/").pop();document.getElementById("t").textContent=table;
+let items=[],cart={};
+const $=id=>document.getElementById(id);
+async function load(){items=await (await fetch("/api/menu")).json();
+ const cats=[...new Set(items.map(i=>i.category))];
+ $("menu").innerHTML=cats.map(c=>`<h2>${c}</h2>`+items.filter(i=>i.category==c).map(i=>
+ `<div class="item"><div><b>${i.name}</b><small>${i.description} · ₹${i.price}</small></div>
+ <div class="qty"><button aria-label="Remove ${i.name}" onclick="chg(${i.id},-1)">−</button><span id="q${i.id}">0</span>
+ <button aria-label="Add ${i.name}" onclick="chg(${i.id},1)">+</button></div></div>`).join("")).join("")}
+function chg(id,d){cart[id]=Math.max(0,(cart[id]||0)+d);$("q"+id).textContent=cart[id];
+ const tot=items.reduce((s,i)=>s+(cart[i.id]||0)*i.price,0);$("order").textContent="Place order · ₹"+tot}
+$("order").onclick=async()=>{const lines=Object.entries(cart).filter(([,q])=>q>0).map(([id,q])=>({item_id:+id,qty:q}));
+ if(!lines.length)return alert("Add at least one item.");
+ const r=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({table:+table,items:lines})});
+ const o=await r.json();cart={};items.forEach(i=>$("q"+i.id).textContent=0);$("order").textContent="Place order · ₹0";track(o.id)};
+$("call").onclick=async()=>{await fetch("/api/calls",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({table:+table})});
+ alert("A waiter is on the way.")};
+const msg={new:"Order sent. Waiting for the kitchen.",preparing:"The kitchen is preparing your order.",ready:"Your order is ready!",served:"Served. Enjoy your meal."};
+function track(id){const s=$("status");s.style.display="block";
+ const tick=async()=>{const o=await (await fetch("/api/orders/"+id)).json();s.textContent=`Order #${id}: `+msg[o.status];
+ if(o.status!="served")setTimeout(tick,4000)};tick()}
+const H={"Content-Type":"application/json"};let bill=0,tip=10,split=1,oid=0,stars=0;
+const total=()=>Math.round(bill*(1+tip/100)*100)/100;
+function drawBill(){$("bsub").textContent="Subtotal ₹"+bill;$("sp").textContent=split;
+ $("btotal").innerHTML=`Tip ₹${(total()-bill).toFixed(2)} · Total ₹${total().toFixed(2)}<br><b>Each pays ₹${Math.ceil(total()/split)}</b>`;
+ $("tips").innerHTML=[0,5,10,15].map(p=>`<button class="chip ${p==tip?"on":""}" onclick="tip=${p};drawBill()">${p}%</button>`).join("")}
+function drawStars(){$("stars").innerHTML=[1,2,3,4,5].map(n=>`<button aria-label="${n} stars" onclick="stars=${n};drawStars()">${n<=stars?"★":"☆"}</button>`).join("")}
+$("billbtn").onclick=async()=>{const b=await (await fetch("/api/bill/"+table)).json();
+ if(!b.subtotal)return alert("No unpaid orders for this table.");
+ bill=b.subtotal;split=1;$("bt").textContent=table;$("pay").hidden=false;$("rev").hidden=true;drawBill();$("bill").showModal()};
+$("mi").onclick=()=>{split=Math.max(1,split-1);drawBill()};$("pl").onclick=()=>{split=Math.min(20,split+1);drawBill()};
+$("closeb").onclick=()=>$("bill").close();
+$("payb").onclick=async()=>{const r=await fetch(`/api/bill/${table}/pay`,{method:"POST",headers:H,body:JSON.stringify({tip_pct:tip,split,email:$("email").value})});
+ const d=await r.json();if(!r.ok)return alert(d.detail);oid=d.order_id;stars=0;drawStars();
+ $("done").textContent=`Paid ₹${d.total.toFixed(2)}. Each person pays ₹${d.share}.`+(d.emailed?" Receipt sent.":"");$("pay").hidden=true;$("rev").hidden=false};
+$("sendr").onclick=async()=>{if(!stars)return alert("Pick a star rating.");
+ const r=await fetch("/api/reviews",{method:"POST",headers:H,body:JSON.stringify({order_id:oid,rating:stars,comment:$("cm").value})});
+ if(!r.ok)return alert((await r.json()).detail);$("bill").close();alert("Thanks for your review!")};
+load();
+</script></body></html>

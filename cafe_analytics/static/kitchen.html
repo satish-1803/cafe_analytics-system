@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Kitchen</title>
+<style>
+:root{--bg:#0c1f20;--card:#14302f;--ink:#e6f2f1;--mute:#9db5b3;--saffron:#f2a900;--chilli:#e2583f;--green:#4fb286}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding:16px}
+h1{font:700 24px Georgia,serif;margin:0 0 12px}#calls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.call{background:var(--chilli);padding:8px 12px;border-radius:999px;border:0;color:#fff;font-weight:600;cursor:pointer}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--card);border-radius:12px;padding:14px;border-top:6px solid var(--saffron)}
+.card.preparing{border-color:var(--chilli)}.card.ready{border-color:var(--green)}
+.head{display:flex;justify-content:space-between}.timer{font-variant-numeric:tabular-nums;color:var(--mute)}.late{color:var(--chilli);font-weight:700}
+ul{padding-left:18px;margin:10px 0}button.next{width:100%;padding:10px;border:0;border-radius:8px;background:var(--saffron);font:600 15px system-ui;cursor:pointer}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}.empty{color:var(--mute)}
+</style></head><body><h1>Kitchen <a href="/admin" style="font:14px system-ui;color:var(--mute)">Admin</a></h1><div id="calls"></div><div id="grid"></div>
+<script>
+const NEXT={new:["preparing","Start preparing"],preparing:["ready","Mark ready"],ready:["served","Mark served"]};
+let orders=[];const $=id=>document.getElementById(id);
+async function refresh(){const r=await fetch("/api/orders");if(r.status==401)return location="/login";orders=await r.json();
+ const calls=await (await fetch("/api/calls")).json();
+ $("calls").innerHTML=calls.map(c=>`<button class="call" onclick="done(${c.id})">Table ${c.table} needs a waiter · dismiss</button>`).join("");
+ draw()}
+function draw(){$("grid").innerHTML=orders.length?orders.map(o=>{const m=Math.floor((Date.now()-new Date(o.created_at))/60000);
+ const n=NEXT[o.status];return `<div class="card ${o.status}"><div class="head"><b>Table ${o.table} · #${o.id}${o.paid?" · Paid":""}</b>
+ <span class="timer ${m>=15&&o.status!="ready"?"late":""}">${m} min</span></div>
+ <ul>${o.items.map(i=>`<li>${i.qty} × ${i.name}</li>`).join("")}</ul>
+ <button class="next" onclick="setS(${o.id},'${n[0]}')">${n[1]}</button></div>`}).join(""):`<p class="empty">No open orders. New orders appear here live.</p>`}
+const patch=(u,b)=>fetch(u,{method:"PATCH",headers:{"Content-Type":"application/json"},body:b&&JSON.stringify(b)});
+const setS=(id,s)=>patch("/api/orders/"+id,{status:s});const done=id=>patch(`/api/calls/${id}/done`);
+function connect(){const ws=new WebSocket((location.protocol=="https:"?"wss://":"ws://")+location.host+"/ws");
+ ws.onmessage=refresh;ws.onclose=()=>setTimeout(connect,2000);ws.onopen=()=>setInterval(()=>ws.send("ping"),25000)}
+refresh();connect();setInterval(draw,30000);
+</script></body></html>

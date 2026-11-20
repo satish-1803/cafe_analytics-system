@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+qrcode[pil]
+streamlit
+plotly
+pandas

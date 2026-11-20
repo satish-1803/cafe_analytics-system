@@ -1,0 +1,22 @@
+Receipt - Table 1
+
+1 x Masala Chai  Rs 40
+1 x Cold Coffee  Rs 120
+1 x Fresh Lime Soda  Rs 70
+1 x Mango Lassi  Rs 110
+1 x Veg Sandwich  Rs 90
+1 x Paneer Tikka Roll  Rs 150
+1 x French Fries  Rs 100
+1 x Samosa (2 pc)  Rs 40
+2 x Paneer Butter Masala  Rs 480
+2 x Veg Biryani  Rs 400
+2 x Dal Tadka Rice  Rs 320
+1 x Gulab Jamun (2 pc)  Rs 60
+2 x Brownie  Rs 220
+
+Subtotal: Rs 2200
+Tip (0%): Rs 0.00
+Total: Rs 2200.00
+Split 10 ways: Rs 220 each
+
+Thank you!
